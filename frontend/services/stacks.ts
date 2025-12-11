@@ -22,6 +22,7 @@ import {
   cvToValue,
   callReadOnlyFunction,
   ClarityValue,
+  cvToJSON,
 } from "@stacks/transactions";
 
 // Configuration
@@ -102,6 +103,69 @@ export const getUserAddress = (): string | null => {
 };
 
 // ==============================================================================
+// HELPER: Parse Clarity values safely
+// ==============================================================================
+
+/**
+ * Safely parse a Clarity value to a JavaScript value
+ */
+const parseCV = (cv: ClarityValue): any => {
+  try {
+    const json = cvToJSON(cv);
+    return parseCVJSON(json);
+  } catch (err) {
+    console.error("Error parsing CV:", err);
+    return cvToValue(cv);
+  }
+};
+
+/**
+ * Parse cvToJSON result recursively
+ */
+const parseCVJSON = (json: any): any => {
+  if (!json) return null;
+  
+  // Handle different Clarity types
+  if (json.type === 'uint' || json.type === 'int') {
+    return parseInt(json.value, 10);
+  }
+  if (json.type === 'bool') {
+    return json.value;
+  }
+  if (json.type === 'principal') {
+    return json.value;
+  }
+  if (json.type === 'buff') {
+    return json.value;
+  }
+  if (json.type === '(string-utf8)' || json.type === 'string-utf8') {
+    return json.value;
+  }
+  if (json.type === '(string-ascii)' || json.type === 'string-ascii') {
+    return json.value;
+  }
+  if (json.type === 'list') {
+    return json.value.map((item: any) => parseCVJSON(item));
+  }
+  if (json.type === 'tuple') {
+    const result: any = {};
+    for (const [key, val] of Object.entries(json.value)) {
+      result[key] = parseCVJSON(val);
+    }
+    return result;
+  }
+  if (json.type === '(optional none)' || json.type === 'none') {
+    return null;
+  }
+  if (json.type === '(optional some)' || json.type === 'some') {
+    return parseCVJSON(json.value);
+  }
+  
+  // Fallback: return raw value
+  return json.value !== undefined ? json.value : json;
+};
+
+// ==============================================================================
 // READ-ONLY CONTRACT CALLS
 // ==============================================================================
 
@@ -120,7 +184,7 @@ export const getEbook = async (ebookId: number) => {
       network,
       senderAddress: CONTRACT_ADDRESS,
     });
-    const value = cvToValue(result);
+    const value = parseCV(result);
     console.log(`Ebook ${ebookId} result:`, value);
     return value;
   } catch (err) {
@@ -144,9 +208,9 @@ export const getEbookCount = async (): Promise<number> => {
       network,
       senderAddress: CONTRACT_ADDRESS,
     });
-    const count = Number(cvToValue(result));
+    const count = parseCV(result);
     console.log("Ebook count:", count);
-    return count;
+    return typeof count === 'number' ? count : Number(count) || 0;
   } catch (err) {
     console.error("Error fetching ebook count:", err);
     return 0;
@@ -170,7 +234,7 @@ export const hasAccess = async (
       network,
       senderAddress: CONTRACT_ADDRESS,
     });
-    return cvToValue(result) as boolean;
+    return parseCV(result) as boolean;
   } catch (err) {
     console.error("Error checking access:", err);
     return false;
@@ -192,9 +256,14 @@ export const getAuthorEbooks = async (authorAddress: string): Promise<number[]> 
       network,
       senderAddress: CONTRACT_ADDRESS,
     });
-    const ids = cvToValue(result) as number[];
-    console.log("Author ebook IDs:", ids);
-    return ids || [];
+    const ids = parseCV(result);
+    console.log("Author ebook IDs (parsed):", ids);
+    
+    // Ensure we return an array of numbers
+    if (Array.isArray(ids)) {
+      return ids.map(id => typeof id === 'number' ? id : Number(id)).filter(id => !isNaN(id));
+    }
+    return [];
   } catch (err) {
     console.error("Error fetching author ebooks:", err);
     return [];
@@ -216,9 +285,14 @@ export const getBuyerEbooks = async (buyerAddress: string): Promise<number[]> =>
       network,
       senderAddress: CONTRACT_ADDRESS,
     });
-    const ids = cvToValue(result) as number[];
-    console.log("Buyer ebook IDs:", ids);
-    return ids || [];
+    const ids = parseCV(result);
+    console.log("Buyer ebook IDs (parsed):", ids);
+    
+    // Ensure we return an array of numbers
+    if (Array.isArray(ids)) {
+      return ids.map(id => typeof id === 'number' ? id : Number(id)).filter(id => !isNaN(id));
+    }
+    return [];
   } catch (err) {
     console.error("Error fetching buyer ebooks:", err);
     return [];
@@ -242,7 +316,7 @@ export const isAuthor = async (
       network,
       senderAddress: CONTRACT_ADDRESS,
     });
-    return cvToValue(result) as boolean;
+    return parseCV(result) as boolean;
   } catch (err) {
     console.error("Error checking author:", err);
     return false;
@@ -416,7 +490,7 @@ export interface Ebook {
 }
 
 /**
- * Fetch all ebooks (active and inactive for full listing)
+ * Fetch all ebooks (active only for homepage)
  */
 export const getAllEbooks = async (): Promise<Ebook[]> => {
   try {
@@ -434,10 +508,10 @@ export const getAllEbooks = async (): Promise<Ebook[]> => {
             id: i,
             title: ebook.title || "",
             description: ebook.description || "",
-            contentHash: ebook["content-hash"] || "",
+            contentHash: ebook["content-hash"] || ebook.contentHash || "",
             price: Number(ebook.price) || 0,
             author: ebook.author || "",
-            createdAt: Number(ebook["created-at"] || 0),
+            createdAt: Number(ebook["created-at"] || ebook.createdAt || 0),
             active: ebook.active,
           });
         }
@@ -468,10 +542,10 @@ export const getEbooksByAuthor = async (authorAddress: string): Promise<Ebook[]>
           id,
           title: ebook.title || "",
           description: ebook.description || "",
-          contentHash: ebook["content-hash"] || "",
+          contentHash: ebook["content-hash"] || ebook.contentHash || "",
           price: Number(ebook.price) || 0,
           author: ebook.author || "",
-          createdAt: Number(ebook["created-at"] || 0),
+          createdAt: Number(ebook["created-at"] || ebook.createdAt || 0),
           active: ebook.active,
         });
       }
