@@ -25,16 +25,16 @@ import {
 } from "@stacks/transactions";
 
 // Configuration
-const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM";
+const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "ST31G2FZ5JN87BATZMP4ZRYE5F7WZQDNEXJ6G4KXP";
 const CONTRACT_NAME = "ebook-store";
 
-// App configuration for Hiro Wallet
+// App configuration for Leather/Hiro Wallet
 const appConfig = new AppConfig(["store_write", "publish_data"]);
 export const userSession = new UserSession({ appConfig });
 
 // Get network based on environment
 export const getNetwork = () => {
-  const networkEnv = process.env.NEXT_PUBLIC_NETWORK || "devnet";
+  const networkEnv = process.env.NEXT_PUBLIC_NETWORK || "testnet";
   switch (networkEnv) {
     case "mainnet":
       return new StacksMainnet();
@@ -45,12 +45,12 @@ export const getNetwork = () => {
   }
 };
 
-// ============================================================
+// ==============================================================
 // WALLET CONNECTION
-// ============================================================
+// ==============================================================
 
 /**
- * Connect to Hiro Wallet
+ * Connect to Leather/Hiro Wallet
  */
 export const connectWallet = (onFinish?: (userData: any) => void) => {
   showConnect({
@@ -78,6 +78,7 @@ export const disconnectWallet = () => {
  * Check if user is signed in
  */
 export const isSignedIn = () => {
+  if (typeof window === "undefined") return false;
   return userSession.isUserSignedIn();
 };
 
@@ -87,46 +88,56 @@ export const isSignedIn = () => {
 export const getUserAddress = (): string | null => {
   if (!isSignedIn()) return null;
   const userData = userSession.loadUserData();
-  const network = process.env.NEXT_PUBLIC_NETWORK || "devnet";
+  const network = process.env.NEXT_PUBLIC_NETWORK || "testnet";
   return network === "mainnet"
     ? userData.profile.stxAddress.mainnet
     : userData.profile.stxAddress.testnet;
 };
 
-// ============================================================
+// ==============================================================
 // READ-ONLY CONTRACT CALLS
-// ============================================================
+// ==============================================================
 
 /**
  * Fetch ebook details by ID
  */
 export const getEbook = async (ebookId: number) => {
-  const network = getNetwork();
-  const result = await fetchCallReadOnlyFunction({
-    contractAddress: CONTRACT_ADDRESS,
-    contractName: CONTRACT_NAME,
-    functionName: "get-ebook",
-    functionArgs: [uintCV(ebookId)],
-    network,
-    senderAddress: CONTRACT_ADDRESS,
-  });
-  return cvToValue(result);
+  try {
+    const network = getNetwork();
+    const result = await fetchCallReadOnlyFunction({
+      contractAddress: CONTRACT_ADDRESS,
+      contractName: CONTRACT_NAME,
+      functionName: "get-ebook",
+      functionArgs: [uintCV(ebookId)],
+      network,
+      senderAddress: CONTRACT_ADDRESS,
+    });
+    return cvToValue(result);
+  } catch (err) {
+    console.error("Error fetching ebook:", err);
+    return null;
+  }
 };
 
 /**
  * Get total number of ebooks
  */
 export const getEbookCount = async (): Promise<number> => {
-  const network = getNetwork();
-  const result = await fetchCallReadOnlyFunction({
-    contractAddress: CONTRACT_ADDRESS,
-    contractName: CONTRACT_NAME,
-    functionName: "get-ebook-count",
-    functionArgs: [],
-    network,
-    senderAddress: CONTRACT_ADDRESS,
-  });
-  return Number(cvToValue(result));
+  try {
+    const network = getNetwork();
+    const result = await fetchCallReadOnlyFunction({
+      contractAddress: CONTRACT_ADDRESS,
+      contractName: CONTRACT_NAME,
+      functionName: "get-ebook-count",
+      functionArgs: [],
+      network,
+      senderAddress: CONTRACT_ADDRESS,
+    });
+    return Number(cvToValue(result));
+  } catch (err) {
+    console.error("Error fetching ebook count:", err);
+    return 0;
+  }
 };
 
 /**
@@ -136,48 +147,63 @@ export const hasAccess = async (
   buyerAddress: string,
   ebookId: number
 ): Promise<boolean> => {
-  const network = getNetwork();
-  const result = await fetchCallReadOnlyFunction({
-    contractAddress: CONTRACT_ADDRESS,
-    contractName: CONTRACT_NAME,
-    functionName: "has-access",
-    functionArgs: [principalCV(buyerAddress), uintCV(ebookId)],
-    network,
-    senderAddress: CONTRACT_ADDRESS,
-  });
-  return cvToValue(result) as boolean;
+  try {
+    const network = getNetwork();
+    const result = await fetchCallReadOnlyFunction({
+      contractAddress: CONTRACT_ADDRESS,
+      contractName: CONTRACT_NAME,
+      functionName: "has-access",
+      functionArgs: [principalCV(buyerAddress), uintCV(ebookId)],
+      network,
+      senderAddress: CONTRACT_ADDRESS,
+    });
+    return cvToValue(result) as boolean;
+  } catch (err) {
+    console.error("Error checking access:", err);
+    return false;
+  }
 };
 
 /**
  * Get all ebooks by an author
  */
 export const getAuthorEbooks = async (authorAddress: string) => {
-  const network = getNetwork();
-  const result = await fetchCallReadOnlyFunction({
-    contractAddress: CONTRACT_ADDRESS,
-    contractName: CONTRACT_NAME,
-    functionName: "get-author-ebooks",
-    functionArgs: [principalCV(authorAddress)],
-    network,
-    senderAddress: CONTRACT_ADDRESS,
-  });
-  return cvToValue(result) as number[];
+  try {
+    const network = getNetwork();
+    const result = await fetchCallReadOnlyFunction({
+      contractAddress: CONTRACT_ADDRESS,
+      contractName: CONTRACT_NAME,
+      functionName: "get-author-ebooks",
+      functionArgs: [principalCV(authorAddress)],
+      network,
+      senderAddress: CONTRACT_ADDRESS,
+    });
+    return cvToValue(result) as number[];
+  } catch (err) {
+    console.error("Error fetching author ebooks:", err);
+    return [];
+  }
 };
 
 /**
  * Get all ebooks owned by a buyer
  */
 export const getBuyerEbooks = async (buyerAddress: string) => {
-  const network = getNetwork();
-  const result = await fetchCallReadOnlyFunction({
-    contractAddress: CONTRACT_ADDRESS,
-    contractName: CONTRACT_NAME,
-    functionName: "get-buyer-ebooks",
-    functionArgs: [principalCV(buyerAddress)],
-    network,
-    senderAddress: CONTRACT_ADDRESS,
-  });
-  return cvToValue(result) as number[];
+  try {
+    const network = getNetwork();
+    const result = await fetchCallReadOnlyFunction({
+      contractAddress: CONTRACT_ADDRESS,
+      contractName: CONTRACT_NAME,
+      functionName: "get-buyer-ebooks",
+      functionArgs: [principalCV(buyerAddress)],
+      network,
+      senderAddress: CONTRACT_ADDRESS,
+    });
+    return cvToValue(result) as number[];
+  } catch (err) {
+    console.error("Error fetching buyer ebooks:", err);
+    return [];
+  }
 };
 
 /**
@@ -187,21 +213,26 @@ export const isAuthor = async (
   ebookId: number,
   userAddress: string
 ): Promise<boolean> => {
-  const network = getNetwork();
-  const result = await fetchCallReadOnlyFunction({
-    contractAddress: CONTRACT_ADDRESS,
-    contractName: CONTRACT_NAME,
-    functionName: "is-author",
-    functionArgs: [uintCV(ebookId), principalCV(userAddress)],
-    network,
-    senderAddress: CONTRACT_ADDRESS,
-  });
-  return cvToValue(result) as boolean;
+  try {
+    const network = getNetwork();
+    const result = await fetchCallReadOnlyFunction({
+      contractAddress: CONTRACT_ADDRESS,
+      contractName: CONTRACT_NAME,
+      functionName: "is-author",
+      functionArgs: [uintCV(ebookId), principalCV(userAddress)],
+      network,
+      senderAddress: CONTRACT_ADDRESS,
+    });
+    return cvToValue(result) as boolean;
+  } catch (err) {
+    console.error("Error checking author:", err);
+    return false;
+  }
 };
 
-// ============================================================
+// ==============================================================
 // PUBLIC CONTRACT CALLS (TRANSACTIONS)
-// ============================================================
+// ==============================================================
 
 /**
  * Register a new ebook
@@ -324,9 +355,9 @@ export const deactivateEbook = async (
   });
 };
 
-// ============================================================
+// ==============================================================
 // UTILITY FUNCTIONS
-// ============================================================
+// ==============================================================
 
 /**
  * Convert STX to microSTX
@@ -349,9 +380,9 @@ export const formatStx = (microStx: number): string => {
   return `${microStxToStx(microStx).toFixed(6)} STX`;
 };
 
-// ============================================================
+// ==============================================================
 // EBOOK TYPE DEFINITION
-// ============================================================
+// ==============================================================
 
 export interface Ebook {
   id: number;
@@ -368,24 +399,29 @@ export interface Ebook {
  * Fetch all active ebooks
  */
 export const getAllEbooks = async (): Promise<Ebook[]> => {
-  const count = await getEbookCount();
-  const ebooks: Ebook[] = [];
-  
-  for (let i = 1; i <= count; i++) {
-    const ebook = await getEbook(i);
-    if (ebook && ebook.active) {
-      ebooks.push({
-        id: i,
-        title: ebook.title,
-        description: ebook.description,
-        contentHash: ebook["content-hash"],
-        price: Number(ebook.price),
-        author: ebook.author,
-        createdAt: Number(ebook["created-at"]),
-        active: ebook.active,
-      });
+  try {
+    const count = await getEbookCount();
+    const ebooks: Ebook[] = [];
+    
+    for (let i = 1; i <= count; i++) {
+      const ebook = await getEbook(i);
+      if (ebook && ebook.active) {
+        ebooks.push({
+          id: i,
+          title: ebook.title,
+          description: ebook.description || "",
+          contentHash: ebook["content-hash"] || "",
+          price: Number(ebook.price),
+          author: ebook.author,
+          createdAt: Number(ebook["created-at"] || 0),
+          active: ebook.active,
+        });
+      }
     }
+    
+    return ebooks;
+  } catch (err) {
+    console.error("Error fetching all ebooks:", err);
+    return [];
   }
-  
-  return ebooks;
 };

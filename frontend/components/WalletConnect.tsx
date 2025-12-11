@@ -24,11 +24,14 @@ export default function WalletConnect({
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    // Only run client-side
+    if (typeof window === "undefined") return;
+    
     // Check if already signed in
-    if (userSession.isSignedIn()) {
+    if (userSession.isUserSignedIn()) {
       const addr = getUserAddress();
       setAddress(addr);
-      onConnect?.(addr!);
+      if (addr) onConnect?.(addr);
     }
     setIsLoading(false);
   }, []);
@@ -37,7 +40,7 @@ export default function WalletConnect({
     connectWallet((userData) => {
       const addr = getUserAddress();
       setAddress(addr);
-      onConnect?.(addr!);
+      if (addr) onConnect?.(addr);
     });
   };
 
